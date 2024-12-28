@@ -1,0 +1,74 @@
+name: CI/CD
+
+on:
+  pull_request:
+    branches:
+      - main
+  # push:
+  #   branches:
+  #     - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.10.13'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install poetry
+        poetry install
+
+    - name: Run tests
+      run: poetry run pytest tests/
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.10.13'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install poetry
+        poetry install
+
+    - name: Create Hugging Face Space
+      env:
+        HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        HF_SPACE_NAME: story_generator
+      run: python create_hf_space.py
+
+    - name: Export dependencies to requirements.txt
+      run: poetry export -f requirements.txt --output requirements.txt --without-hashes
+
+    - name: Upload to Hugging Face Space
+      env:
+        HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        HF_SPACE_NAME: story_generator
+      run: |
+        huggingface-cli login --token ${HF_TOKEN} --add-to-git-credential
+        git clone https://huggingface.co/spaces/ssalb/${HF_SPACE_NAME}
+        cp -r story_beam_search ${HF_SPACE_NAME}/.
+        cp requirements.txt ${HF_SPACE_NAME}/.
+        cd ${HF_SPACE_NAME}
+        mv story_beam_search/app.py app.py
+        git add .
+        git commit -m "Update space with latest code and dependencies on $(date -u)"
+        git push
