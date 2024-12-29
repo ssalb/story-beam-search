@@ -134,13 +134,11 @@ class StoryGenerationSystem:
         all_stories = []
         for _ in range(num_stories):
             stories = self.beam_search.generate_iterations(prompt, genre, evaluator)
-            print("in loop")
             ranked_stories = evaluator.evaluate_multiple(stories)
             # keep the top story of this beam search iteration
             all_stories.append(ranked_stories[0][0])
 
         # Evaluate stories once more
-        print("final evaluation")
         ranked_stories = evaluator.evaluate_multiple(all_stories)
         # Return top k stories with their scores
         return ranked_stories[:num_stories]

@@ -61,7 +61,6 @@ class BeamSearchGenerator:
                         instructions + story
                     )
                     all_stories.extend(continuations)
-                print("inside generate_iterations")
                 ranked_stories = evaluator.evaluate_multiple(
                     [story[instructions_len:] for story in all_stories]
                 )
