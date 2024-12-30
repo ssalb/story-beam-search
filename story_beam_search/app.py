@@ -117,4 +117,4 @@ def create_story_generation_interface() -> gr.Interface:
 if __name__ == "__main__":
     # Create and launch the interface
     interface = create_story_generation_interface()
-    interface.launch(show_error=True)
+    interface.launch()
