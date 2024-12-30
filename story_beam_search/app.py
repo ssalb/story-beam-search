@@ -69,11 +69,11 @@ def create_story_generation_interface() -> gr.Interface:
     )
 
     temperature_input = gr.Slider(
-        minimum=0.1, maximum=3.0, value=0.8, step=0.1, label="Temperature (Creativity)"
+        minimum=0.7, maximum=3.5, value=2.5, step=0.1, label="Temperature (Creativity)"
     )
 
     max_length_input = gr.Slider(
-        minimum=30, maximum=150, value=60, step=30, label="Maximum Length"
+        minimum=30, maximum=200, value=60, step=30, label="Maximum Length"
     )
 
     # Output components
@@ -99,12 +99,12 @@ def create_story_generation_interface() -> gr.Interface:
         fluency, and genre alignment.
         """,
         examples=[
-            ["Once upon a time in a magical forest,", "fantasy", 3, 0.8, 150],
+            ["Once upon a time in a magical forest,", "fantasy", 3, 1.8, 150],
             [
-                "The detective examined the crime scene carefully,",
+                "The detective knelt beside the bloodstained carpet, her gaze sharp as she traced the faint outline of a shoeprint.",
                 "mystery",
                 3,
-                0.7,
+                2.7,
                 200,
             ],
         ],
@@ -117,4 +117,4 @@ def create_story_generation_interface() -> gr.Interface:
 if __name__ == "__main__":
     # Create and launch the interface
     interface = create_story_generation_interface()
-    interface.launch()
+    interface.launch(show_error=True)
