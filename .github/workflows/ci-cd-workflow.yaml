@@ -71,6 +71,8 @@ jobs:
         git clone https://huggingface.co/spaces/${HF_USER_NAME}/${HF_SPACE_NAME}
         cp -r story_beam_search ${HF_SPACE_NAME}/.
         cp requirements.txt ${HF_SPACE_NAME}/.
+        cp README.md ${HF_SPACE_NAME}/.
+        cp LICENSE ${HF_SPACE_NAME}/.
         cd ${HF_SPACE_NAME}
         mv story_beam_search/app.py app.py
         git add .
