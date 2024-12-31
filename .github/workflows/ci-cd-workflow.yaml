@@ -53,6 +53,7 @@ jobs:
       env:
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
         HF_SPACE_NAME: story_generator
+        HF_USER_NAME: ssalb
       run: python create_hf_space.py
 
     - name: Export dependencies to requirements.txt
@@ -62,17 +63,18 @@ jobs:
       env:
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
         HF_SPACE_NAME: story_generator
-        GIT_COMMITTER_NAME: ssalb
-        GIT_COMMITTER_EMAIL: "40628560+ssalb@users.noreply.github.com"
+        HF_USER_NAME: ssalb
+        HF_USER_EMAIL: "40628560+ssalb@users.noreply.github.com"
       run: |
+        git config --global credential.helper store
         huggingface-cli login --token ${HF_TOKEN} --add-to-git-credential
-        git clone https://huggingface.co/spaces/ssalb/${HF_SPACE_NAME}
+        git clone https://huggingface.co/spaces/${HF_USER_NAME}/${HF_SPACE_NAME}
         cp -r story_beam_search ${HF_SPACE_NAME}/.
         cp requirements.txt ${HF_SPACE_NAME}/.
         cd ${HF_SPACE_NAME}
         mv story_beam_search/app.py app.py
         git add .
-        git config user.email "${GIT_COMMITTER_EMAIL}"
-        git config user.name "${GIT_COMMITTER_NAME}"
+        git config user.email "${HF_USER_EMAIL}"
+        git config user.name "${HF_USER_NAME}"
         git commit -m "Update space with latest code and dependencies on $(date -u)"
         git push
