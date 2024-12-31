@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from pydantic.dataclasses import dataclass
 from typing import Optional
 import torch
 from transformers import PreTrainedModel, PreTrainedTokenizer
@@ -8,8 +8,8 @@ from story_beam_search.scoring import StoryScorer
 
 @dataclass
 class BeamSearchConfig:
-    num_beams: int = 4
-    num_return_sequences: int = 4
+    num_beams: int = 3
+    num_return_sequences: int = 3
     max_length: int = 100
     no_repeat_ngram_size: int = 2
     temperature: float = 0.8
@@ -61,7 +61,6 @@ class BeamSearchGenerator:
                         instructions + story
                     )
                     all_stories.extend(continuations)
-                print("inside generate_iterations")
                 ranked_stories = evaluator.evaluate_multiple(
                     [story[instructions_len:] for story in all_stories]
                 )

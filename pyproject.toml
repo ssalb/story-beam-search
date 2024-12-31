@@ -12,7 +12,15 @@ protobuf = "^5.29.2"
 scikit-learn = "^1.6.0"
 huggingface-hub = "^0.27.0"
 transformers = "^4.47.1"
+pydantic = "^2.10.4"
 
+
+[tool.poetry.group.test.dependencies]
+pytest = "^8.3.4"
+
+
+[tool.poetry.group.dev.dependencies]
+gradio-client = "^1.5.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

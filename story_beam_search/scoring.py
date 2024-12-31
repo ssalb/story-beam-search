@@ -16,10 +16,10 @@ class StoryScorer(Protocol):
 
 @dataclass
 class CombinedScore:
-    coherence: float
-    fluency: float
-    genre_alignment: float
-    total: float
+    coherence: float = 0.0
+    fluency: float = 0.0
+    genre_alignment: float = 0.0
+    total: float = 0.0
 
 
 class CoherenceScorer(StoryScorer):
