@@ -1,6 +1,27 @@
 import gradio as gr
+from typing import Literal
+from pydantic import BaseModel, Field, constr
 from story_beam_search.stories_generator import StoryGenerationSystem
 from typing import Tuple, List
+
+genre_choices = [
+    "children",
+    "mystery",
+    "adventure",
+    "sci-fi",
+    "fantasy",
+    "romance",
+    "comedy",
+    "drama",
+    "horror",
+]
+
+class InputModel(BaseModel):
+    prompt: str
+    genre: str
+    num_stories: int = Field(3, ge=2, le=7)
+    temperature: float = Field(2.5, ge=0.7, le=3.5)
+    max_length: int = Field(60, ge=30, le=200)
 
 
 def create_story_generation_interface() -> gr.Interface:
@@ -15,13 +36,19 @@ def create_story_generation_interface() -> gr.Interface:
         Generate and evaluate stories based on user input.
         Returns a tuple of (detailed_scores, story_texts).
         """
+
+        # Validate inputs.Gradio seems to validate chioces but not the range of the values
+        input_values = InputModel(
+            prompt=prompt, genre=genre, num_stories=num_stories, temperature=temperature, max_length=max_length
+        )
+
         # Update beam search config with user parameters
-        system.beam_search.config.temperature = temperature
-        system.beam_search.config.max_length = max_length
+        system.beam_search.config.temperature = input_values.temperature
+        system.beam_search.config.max_length = input_values.max_length
 
         # Generate and evaluate stories
         ranked_stories = system.generate_and_evaluate(
-            prompt, genre, num_stories=num_stories
+            input_values.prompt, input_values.genre, num_stories=input_values.num_stories
         )
 
         # Format detailed scores
@@ -48,18 +75,7 @@ def create_story_generation_interface() -> gr.Interface:
     )
 
     genre_input = gr.Dropdown(
-        choices=[
-            "children",
-            "romance",
-            "mystery",
-            "adventure",
-            "sci-fi",
-            "fantasy",
-            "comedy",
-            "drama",
-            "thriller",
-            "horror",
-        ],
+        choices=genre_choices,
         label="Genre",
         value="fantasy",
     )

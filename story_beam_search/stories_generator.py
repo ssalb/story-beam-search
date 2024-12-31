@@ -16,7 +16,7 @@ auth_token = os.getenv("HF_AUTH_TOKEN", None)
 
 @dataclass
 class ModelConfig:
-    text_model_name: str = "meta-llama/Llama-3.2-1B-Instruct"
+    text_model_name: str = "gpt2"  # "meta-llama/Llama-3.2-1B-Instruct"
     bert_name: str = "bert-base-uncased"  # "answerdotai/ModernBERT-base"
     zero_shot_name: str = "facebook/bart-large-mnli"
     device: str = (
@@ -141,6 +141,7 @@ class StoryGenerationSystem:
             ),
         )
 
+        # Last minute addition 'misusing' the GenreAlignmentScorer to check for prompt injections
         self.storyness = GenreAlignmentScorer(
             pipeline=self.models.zero_shot_pipeline, genre="story"
         )
@@ -159,11 +160,11 @@ class StoryGenerationSystem:
         prompt_segments = re.split(r'[^a-zA-Z0-9 ]+', prompt)
         prompt_segments = list(set(prompt_segments))
 
+        storyness_score = self.storyness.score(prompt)
         for segment in prompt_segments:
             if segment.strip():    
-                storyness_score = self.storyness.score(segment)
                 injection_score = self.injection_guard.score(segment)
-                if storyness_score < 0.1 or injection_score > 0.2:
+                if storyness_score < 0.2 or injection_score > 0.2:
                     print("Potential prompt injection detected.")
                     print(f"storyness_score: {storyness_score}")
                     print(f"injection_score: {injection_score}")
