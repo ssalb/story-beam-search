@@ -1,5 +1,6 @@
 import os
-from huggingface_hub import HfApi, HfHubHTTPError
+from huggingface_hub import HfApi
+from huggingface_hub.utils import HfHubHTTPError
 
 space_name = os.getenv("HF_SPACE_NAME")
 
