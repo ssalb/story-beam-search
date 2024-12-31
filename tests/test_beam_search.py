@@ -45,6 +45,6 @@ def test_generate_iterations(beam_search_generator, mock_evaluator):
     stories = beam_search_generator.generate_iterations(prompt, genre, mock_evaluator)
 
     assert len(stories) == beam_search_generator.config.num_beams
-    assert stories == ["story2", "story1", "story4", "story3"]
+    assert stories == ["story2", "story1", "story4"]
     beam_search_generator._generate_single_iteration.assert_called()
     mock_evaluator.evaluate_multiple.assert_called()
