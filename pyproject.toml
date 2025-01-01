@@ -13,6 +13,7 @@ scikit-learn = "^1.6.0"
 huggingface-hub = "^0.27.0"
 transformers = "^4.47.1"
 pydantic = "^2.10.4"
+spaces = "^0.31.1"
 
 
 [tool.poetry.group.test.dependencies]
