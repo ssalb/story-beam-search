@@ -11,7 +11,7 @@ from transformers import (
 )
 import torch
 
-auth_token = os.getenv("HF_AUTH_TOKEN", None)
+auth_token = os.getenv("HF_TOKEN", None)
 
 
 @dataclass
