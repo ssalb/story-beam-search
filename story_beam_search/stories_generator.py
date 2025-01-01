@@ -16,7 +16,7 @@ auth_token = os.getenv("HF_AUTH_TOKEN", None)
 
 @dataclass
 class ModelConfig:
-    text_model_name: str = "gpt2"  # "meta-llama/Llama-3.2-1B-Instruct"
+    text_model_name: str = "meta-llama/Llama-3.2-1B-Instruct"
     bert_name: str = "bert-base-uncased"  # "answerdotai/ModernBERT-base"
     zero_shot_name: str = "facebook/bart-large-mnli"
     device: str = (
@@ -51,7 +51,7 @@ class ModelLoader:
         # Load Text model for writting stories
         print(f"Loading Text model ({self.config.text_model_name})...")
         text_tokenizer = AutoTokenizer.from_pretrained(
-            self.config.text_model_name, use_auth_token=auth_token
+            self.config.text_model_name, token=auth_token
         )
         text_model = AutoModelForCausalLM.from_pretrained(
             self.config.text_model_name
