@@ -9,7 +9,7 @@ sdk_version: 5.9.1
 app_file: app.py
 pinned: false
 preload_from_hub:
-- openai-community/gpt2
+- meta-llama/Llama-3.2-1B-Instruct
 - google-bert/bert-base-uncased
 - facebook/bart-large-mnli
 license: mit
