@@ -16,21 +16,14 @@ from story_beam_search.scoring import (
 @pytest.fixture
 def mock_bert_model():
 
-    def mock_output(input_ids):
+    def mock_output(**inputs):
         output = MagicMock()
         output.logits = torch.ones(1, 10, 768)
+        output.hidden_states = [torch.randn(10, 10, 768)]
         return output
     
     model = Mock(spec=PreTrainedModel, side_effect=mock_output)
-    
 
-    def bert_mock(**inputs):
-        bert_output = MagicMock()
-        bert_output.last_hidden_state = torch.randn(1, 10, 768)
-        return bert_output
-
-    model.bert = MagicMock(side_effect=bert_mock)
-    
     return model
 
 @pytest.fixture

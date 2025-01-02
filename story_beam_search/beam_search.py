@@ -51,7 +51,7 @@ class BeamSearchGenerator:
             [story[instructions_len:] for story in stories]
         )
 
-        stories = [story for story, _ in ranked_stories[:self.config.num_beams]]
+        stories = [story for story, _ in ranked_stories[: self.config.num_beams]]
 
         if stories:
             for _ in range(self.config.num_iterations):
@@ -64,7 +64,9 @@ class BeamSearchGenerator:
                 ranked_stories = evaluator.evaluate_multiple(
                     [story[instructions_len:] for story in all_stories]
                 )
-                stories = [story for story, _ in ranked_stories[:self.config.num_beams]]
+                stories = [
+                    story for story, _ in ranked_stories[: self.config.num_beams]
+                ]
 
         return stories
 
@@ -93,7 +95,7 @@ class BeamSearchGenerator:
                 top_k=self.config.top_k,
                 top_p=self.config.top_p,
                 do_sample=True,
-            )
+            ).to(self.device)
 
         stories = []
         for output in outputs:

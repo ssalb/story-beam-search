@@ -9,8 +9,8 @@ sdk_version: 5.9.1
 app_file: app.py
 pinned: false
 preload_from_hub:
-# - meta-llama/Llama-3.2-1B-Instruct # Do not preload llama, as the token is not available at build time
-- google-bert/bert-base-uncased
+- openai-community/gpt2
+- answerdotai/ModernBERT-base
 - facebook/bart-large-mnli
 license: mit
 ---
