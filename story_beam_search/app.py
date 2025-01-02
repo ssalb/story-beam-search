@@ -16,6 +16,7 @@ genre_choices = [
     "horror",
 ]
 
+
 class InputModel(BaseModel):
     prompt: str
     genre: str
@@ -28,7 +29,7 @@ def create_story_generation_interface() -> gr.Interface:
     # Initialize the story generation system
     system = StoryGenerationSystem()
     system.initialize()
-
+    
     def generate_stories(
         prompt: str, genre: str, num_stories: int, temperature: float, max_length: int
     ) -> Tuple[str, List[str]]:
@@ -39,7 +40,11 @@ def create_story_generation_interface() -> gr.Interface:
 
         # Validate inputs.Gradio seems to validate chioces but not the range of the values
         input_values = InputModel(
-            prompt=prompt, genre=genre, num_stories=num_stories, temperature=temperature, max_length=max_length
+            prompt=prompt,
+            genre=genre,
+            num_stories=num_stories,
+            temperature=temperature,
+            max_length=max_length,
         )
 
         # Update beam search config with user parameters
@@ -48,7 +53,9 @@ def create_story_generation_interface() -> gr.Interface:
 
         # Generate and evaluate stories
         ranked_stories = system.generate_and_evaluate(
-            input_values.prompt, input_values.genre, num_stories=input_values.num_stories
+            input_values.prompt,
+            input_values.genre,
+            num_stories=input_values.num_stories,
         )
 
         # Format detailed scores

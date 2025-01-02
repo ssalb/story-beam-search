@@ -57,7 +57,9 @@ jobs:
       run: python create_hf_space.py
 
     - name: Export dependencies to requirements.txt
-      run: poetry export -f requirements.txt --output requirements.txt --without-hashes
+      run: |
+        poetry export -f requirements.txt --output requirements.txt --without-hashes
+        sed -i '/nvidia-/d' requirements.txt
 
     - name: Upload to Hugging Face Space
       env:

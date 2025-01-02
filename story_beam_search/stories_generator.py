@@ -16,8 +16,8 @@ auth_token = os.getenv("HF_TOKEN", None)
 
 @dataclass
 class ModelConfig:
-    text_model_name: str = "meta-llama/Llama-3.2-1B-Instruct"
-    bert_name: str = "bert-base-uncased"  # "answerdotai/ModernBERT-base"
+    text_model_name: str = "openai-community/gpt2"
+    bert_name: str = "answerdotai/ModernBERT-base"
     zero_shot_name: str = "facebook/bart-large-mnli"
     device: str = (
         "mps"
@@ -54,14 +54,14 @@ class ModelLoader:
             self.config.text_model_name, token=auth_token
         )
         text_model = AutoModelForCausalLM.from_pretrained(
-            self.config.text_model_name
+            self.config.text_model_name, device_map="auto", torch_dtype=torch.float16
         ).to(self.device)
         text_model.eval()
 
         # Load BERT model for coherence and fluency scoring
         print(f"Loading BERT model ({self.config.bert_name})...")
         bert_tokenizer = AutoTokenizer.from_pretrained(self.config.bert_name)
-        bert_model = AutoModelForMaskedLM.from_pretrained(self.config.bert_name).to(
+        bert_model = AutoModelForMaskedLM.from_pretrained(self.config.bert_name, output_hidden_states=True).to(
             self.device
         )
         bert_model.eval()
@@ -155,22 +155,23 @@ class StoryGenerationSystem:
         """Generate stories and evaluate them."""
         if not self.models:
             raise RuntimeError("System not initialized. Call initialize() first.")
-        
+
         # Low effort attempt to detect prompt injections using the zero-shot classifier
-        prompt_segments = re.split(r'[^a-zA-Z0-9 ]+', prompt)
+        prompt_segments = re.split(r"[^a-zA-Z0-9 ]+", prompt)
         prompt_segments = list(set(prompt_segments))
 
         storyness_score = self.storyness.score(prompt)
         for segment in prompt_segments:
-            if segment.strip():    
+            if segment.strip():
                 injection_score = self.injection_guard.score(segment)
                 if storyness_score < 0.2 or injection_score > 0.2:
                     print("Potential prompt injection detected.")
                     print(f"storyness_score: {storyness_score}")
                     print(f"injection_score: {injection_score}")
                     print("Prompt:", segment)
-                    raise ValueError("Prompt does not seem like a story. Please try again.")
-                 
+                    raise ValueError(
+                        "Prompt does not seem like a story. Please try again."
+                    )
 
         # Create evaluator with specified genre
         evaluator = self.create_evaluator(genre)

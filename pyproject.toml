@@ -11,8 +11,9 @@ gradio = "5.9.1"
 protobuf = "^5.29.2"
 scikit-learn = "^1.6.0"
 huggingface-hub = "^0.27.0"
-transformers = "^4.47.1"
 pydantic = "^2.10.4"
+accelerate = "^1.2.1"
+transformers = { git = "https://github.com/huggingface/transformers.git" }
 
 
 [tool.poetry.group.test.dependencies]

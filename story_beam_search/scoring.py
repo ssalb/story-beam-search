@@ -46,7 +46,9 @@ class CoherenceScorer(StoryScorer):
         for sentence in sentences:
             inputs = self.tokenizer(sentence, return_tensors="pt").to(self.device)
             with torch.no_grad():
-                emb = self.model.bert(**inputs).last_hidden_state[:, 0, :]
+                outputs = self.model(**inputs)
+                last_hidden_state = outputs.hidden_states[-1]
+                emb = last_hidden_state[:, 0, :]
                 embeddings.append(emb.cpu().numpy())
 
         # Calculate cosine similarity between adjacent embeddings
