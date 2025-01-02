@@ -1,4 +1,3 @@
-import spaces
 import numpy as np
 from dataclasses import dataclass
 from typing import Protocol
@@ -36,7 +35,6 @@ class CoherenceScorer(StoryScorer):
         self.device = device
         self.max_pairs = max_pairs
 
-    @spaces.GPU
     def score(self, story: str) -> float:
         """Calculate coherence score based on sentences cosine similarity."""
 
@@ -75,7 +73,6 @@ class FluencyScorer(StoryScorer):
         self.tokenizer = tokenizer
         self.device = device
 
-    @spaces.GPU
     def score(self, story: str) -> float:
         # Mask each token in the story and calculate the probability of the original token
         # Fluency is measured by the average probability of each token in the story
@@ -106,7 +103,6 @@ class FluencyScorer(StoryScorer):
         return avg_fluency
 
 
-@spaces.GPU
 class GenreAlignmentScorer(StoryScorer):
     def __init__(self, pipeline: Pipeline, genre: str):
         self.pipeline = pipeline
@@ -163,7 +159,7 @@ class StoryEvaluator:
 
         # Scores are normalized by the max scores on every evaluation
         # This is to ensure that the scores are comparable between each other, as they are originally on different scales
-        
+
         # Reset max scores
         max_scores = [0.0, 0.0, 0.0]
 

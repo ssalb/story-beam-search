@@ -1,4 +1,3 @@
-import spaces
 from pydantic.dataclasses import dataclass
 from typing import Optional
 import torch
@@ -69,7 +68,6 @@ class BeamSearchGenerator:
 
         return stories
 
-    @spaces.GPU
     def _generate_single_iteration(self, prompt: str) -> list[str]:
         """
         Generate multiple continuations for a single iteration using beam search.
