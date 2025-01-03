@@ -160,10 +160,10 @@ class StoryGenerationSystem:
         prompt_segments = re.split(r"[^a-zA-Z0-9 ]+", prompt)
         prompt_segments = list(set(prompt_segments))
 
-        storyness_score = self.storyness.score(prompt)
+        storyness_score = self.storyness.score([prompt])[0]
         for segment in prompt_segments:
             if segment.strip():
-                injection_score = self.injection_guard.score(segment)
+                injection_score = self.injection_guard.score([segment])[0]
                 if storyness_score < 0.2 or injection_score > 0.2:
                     print("Potential prompt injection detected.")
                     print(f"storyness_score: {storyness_score}")

@@ -9,7 +9,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 class StoryScorer(Protocol):
     """Protocol defining the interface for story scoring components."""
 
-    def score(self, story: str) -> float:
+    def score(self, stories: list[str]) -> float:
         """Return a score between 0 and 1."""
         ...
 
@@ -28,40 +28,72 @@ class CoherenceScorer(StoryScorer):
         model: PreTrainedModel,
         tokenizer: PreTrainedTokenizer,
         device: torch.device,
-        max_pairs: int = 3,
+        batch_size: int = 32,
     ):
         self.model = model
         self.tokenizer = tokenizer
         self.device = device
-        self.max_pairs = max_pairs
+        self.batch_size = batch_size
 
-    def score(self, story: str) -> float:
+    def score(self, stories: list[str]) -> list[float]:
         """Calculate coherence score based on sentences cosine similarity."""
+        all_scores = []
 
-        sentences = [s.strip() for s in story.split(".") if s.strip()]
+        # Split stories into sentences for coherence scoring
+        sentences_list = [
+            [s.strip() for s in story.split(".") if s.strip()] for story in stories
+        ]
 
-        embeddings = []
+        # Collect all sentence pairs that need embedding
+        all_sentence_pairs = []
+        story_boundaries = []  # Track where each story's sentences end
+        current_position = 0
 
-        # Generate embeddings for each sentence
-        for sentence in sentences:
-            inputs = self.tokenizer(sentence, return_tensors="pt").to(self.device)
+        for sentences in sentences_list:
+            pairs_count = len(sentences) - 1
+            all_sentence_pairs.extend(zip(sentences[:-1], sentences[1:]))
+            story_boundaries.append(current_position + pairs_count)
+            current_position += pairs_count
+
+        # Process sentence pairs in batches
+        all_embeddings = []
+        for i in range(0, len(all_sentence_pairs), self.batch_size):
+            batch_pairs = all_sentence_pairs[i : i + self.batch_size]
+            # Flatten pairs for batch processing
+            batch_sentences = [sent for pair in batch_pairs for sent in pair]
+
+            # Tokenize batch
+            inputs = self.tokenizer(
+                batch_sentences, padding=True, truncation=True, return_tensors="pt"
+            ).to(self.device)
+
             with torch.no_grad():
-                outputs = self.model(**inputs)
-                last_hidden_state = outputs.hidden_states[-1]
-                emb = last_hidden_state[:, 0, :]
-                embeddings.append(emb.cpu().numpy())
+                outputs = self.model(**inputs, output_hidden_states=True)
+                batch_embeddings = outputs.hidden_states[-1][
+                    :, 0, :
+                ]  # Get CLS token embeddings
+                all_embeddings.extend(batch_embeddings.cpu().numpy())
 
-        # Calculate cosine similarity between adjacent embeddings
-        coherence_scores = []
-        for i in range(len(embeddings) - 1):
-            sim = cosine_similarity(embeddings[i], embeddings[i + 1])[0][0]
-            coherence_scores.append(sim)
+        # Calculate coherence scores for each story
+        current_idx = 0
+        for boundary in story_boundaries:
+            story_pairs_count = boundary - current_idx
+            story_scores = []
 
-        # Average coherence score
-        avg_coherence = (
-            sum(coherence_scores) / len(coherence_scores) if coherence_scores else 0.0
-        )
-        return avg_coherence
+            for i in range(story_pairs_count):
+                idx = current_idx + i
+                first_emb = all_embeddings[idx * 2].reshape(1, -1)
+                second_emb = all_embeddings[idx * 2 + 1].reshape(1, -1)
+                sim = cosine_similarity(first_emb, second_emb)[0][0]
+                story_scores.append(sim)
+
+            avg_coherence = (
+                sum(story_scores) / len(story_scores) if story_scores else 0.0
+            )
+            all_scores.append(avg_coherence)
+            current_idx = boundary
+
+        return all_scores
 
 
 class FluencyScorer(StoryScorer):
@@ -70,61 +102,119 @@ class FluencyScorer(StoryScorer):
         model: PreTrainedModel,
         tokenizer: PreTrainedTokenizer,
         device: torch.device,
+        batch_size: int = 32,
     ):
         self.model = model
         self.tokenizer = tokenizer
         self.device = device
+        self.batch_size = batch_size
 
-    def score(self, story: str) -> float:
-        # Mask each token in the story and calculate the probability of the original token
-        # Fluency is measured by the average probability of each token in the story
-        inputs = self.tokenizer(story, return_tensors="pt").to(self.device)
-        input_ids = inputs.input_ids
+        # Set up padding token if it doesn't exist
+        if self.tokenizer.pad_token is None:
+            if self.tokenizer.eos_token is not None:
+                self.tokenizer.pad_token = self.tokenizer.eos_token
+            else:
+                # Add padding token to tokenizer only
+                self.tokenizer.add_special_tokens({"pad_token": "[PAD]"})
+
+        # Set up mask token if it doesn't exist
+        if self.tokenizer.mask_token is None:
+            self.tokenizer.add_special_tokens({"mask_token": "[MASK]"})
+
+    def score(self, stories: list[str]) -> list[float]:
+        all_scores = []
         mask_token_id = self.tokenizer.mask_token_id
 
-        if mask_token_id is None:
-            self.tokenizer.mask_token = "[MASK]"
-            mask_token_id = self.tokenizer.encode(self.tokenizer.mask_token)[0]
+        # Process stories in batches
+        for i in range(0, len(stories), self.batch_size):
+            batch_stories = stories[i : i + self.batch_size]
+            batch_inputs = self.tokenizer(
+                batch_stories, padding=True, truncation=True, return_tensors="pt"
+            ).to(self.device)
 
-        fluency_scores = []
-        for i in range(1, input_ids.size(1) - 1):
-            masked_input_ids = input_ids.clone()
-            masked_input_ids[0, i] = mask_token_id
+            batch_scores = []
 
-            with torch.no_grad():
-                outputs = self.model(input_ids=masked_input_ids)
-                logits = outputs.logits
+            # For each story in the batch
+            for j in range(len(batch_stories)):
+                story_scores = []
+                input_ids = batch_inputs.input_ids[j : j + 1]  # Keep batch dimension
+                attention_mask = batch_inputs.attention_mask[
+                    j : j + 1
+                ]  # Get attention mask
 
-            original_token_id = input_ids[0, i]
-            token_probability = logits[0, i].softmax(dim=-1)[original_token_id].item()
-            fluency_scores.append(token_probability)
+                # Only process tokens that aren't padding
+                valid_tokens = attention_mask[0].sum().item()
 
-        avg_fluency = (
-            sum(fluency_scores) / len(fluency_scores) if fluency_scores else 0.0
-        )
-        return avg_fluency
+                # For each token in the story (excluding padding)
+                for k in range(1, valid_tokens - 1):
+                    masked_input_ids = input_ids.clone()
+                    masked_input_ids[0, k] = mask_token_id
+
+                    with torch.no_grad():
+                        outputs = self.model(
+                            input_ids=masked_input_ids, attention_mask=attention_mask
+                        )
+                        logits = outputs.logits
+
+                    original_token_id = input_ids[0, k]
+                    token_probability = (
+                        logits[0, k].softmax(dim=-1)[original_token_id].item()
+                    )
+                    story_scores.append(token_probability)
+
+                avg_fluency = (
+                    sum(story_scores) / len(story_scores) if story_scores else 0.0
+                )
+                batch_scores.append(avg_fluency)
+
+            all_scores.extend(batch_scores)
+
+        return all_scores
 
 
 class GenreAlignmentScorer(StoryScorer):
-    def __init__(self, pipeline: Pipeline, genre: str):
+    def __init__(self, pipeline: Pipeline, genre: str, batch_size: int = 32):
         self.pipeline = pipeline
         self.genre = genre
+        self.batch_size = batch_size
 
-    def score(self, story: str) -> float:
+    def score(self, stories: list[str]) -> list[float]:
         if not self.genre:
-            return 0.5
+            return [0.5] * len(stories)
 
-        # Evaluate by sentence to check whether the genre is maintained throughout
-        sentences = [s.strip() for s in story.split(".") if s.strip()]
-        results = []
-        for sentence in sentences:
-            result = self.pipeline(
-                sentence, candidate_labels=[self.genre], multi_label=True
+        all_scores = []
+        # Split all stories into sentences
+        all_sentences = []
+        story_boundaries = []
+        current_position = 0
+
+        for story in stories:
+            sentences = [s.strip() for s in story.split(".") if s.strip()]
+            all_sentences.extend(sentences)
+            story_boundaries.append(current_position + len(sentences))
+            current_position += len(sentences)
+
+        # Process sentences in batches
+        all_sentence_scores = []
+        for i in range(0, len(all_sentences), self.batch_size):
+            batch_sentences = all_sentences[i : i + self.batch_size]
+            results = self.pipeline(
+                batch_sentences,
+                candidate_labels=[self.genre],
+                multi_label=True,
+                batch_size=self.batch_size,
             )
-            results.append(result["scores"][0])
+            all_sentence_scores.extend([r["scores"][0] for r in results])
 
-        avg_core = sum(results) / len(results) if results else 0.0
-        return avg_core
+        # Calculate average score for each story
+        current_idx = 0
+        for boundary in story_boundaries:
+            story_scores = all_sentence_scores[current_idx:boundary]
+            avg_score = sum(story_scores) / len(story_scores) if story_scores else 0.0
+            all_scores.append(avg_score)
+            current_idx = boundary
+
+        return all_scores
 
 
 class StoryEvaluator:
@@ -140,43 +230,32 @@ class StoryEvaluator:
         self.genre_scorer = genre_scorer
         self.weights = weights
 
-    def evaluate(self, story: str, max_scores: list[float]) -> CombinedScore:
-        coherence = self.coherence_scorer.score(story)
-        fluency = self.fluency_scorer.score(story)
-        genre_alignment = self.genre_scorer.score(story)
-
-        max_scores[0] = np.max([max_scores[0], coherence])
-        max_scores[1] = np.max([max_scores[1], fluency])
-        max_scores[2] = np.max([max_scores[2], genre_alignment])
-
-        return CombinedScore(
-            coherence=coherence,
-            fluency=fluency,
-            genre_alignment=genre_alignment,
-            total=0,
-        )
-
     def evaluate_multiple(self, stories: list[str]) -> list[tuple[str, CombinedScore]]:
-        """Evaluate multiple stories and return them sorted by total score."""
+        """Evaluate multiple stories in batches and return them sorted by total score."""
 
-        # Scores are normalized by the max scores on every evaluation
-        # This is to ensure that the scores are comparable between each other, as they are originally on different scales
+        # Get all scores in parallel using batch processing
+        coherence_scores = self.coherence_scorer.score(stories)
+        fluency_scores = self.fluency_scorer.score(stories)
+        genre_scores = self.genre_scorer.score(stories)
 
-        # Reset max scores
-        max_scores = [0.0, 0.0, 0.0]
+        # Find max scores for normalization
+        max_scores = [max(coherence_scores), max(fluency_scores), max(genre_scores)]
 
-        scored_stories = [
-            (story, self.evaluate(story, max_scores)) for story in stories
-        ]
-
-        # Normalize scores
-        for _, scores in scored_stories:
-            scores.coherence, scores.fluency, scores.genre_alignment = np.divide(
-                [scores.coherence, scores.fluency, scores.genre_alignment],
-                max_scores,
+        # Create scored stories
+        scored_stories = []
+        for i, story in enumerate(stories):
+            scores = CombinedScore(
+                coherence=(
+                    coherence_scores[i] / max_scores[0] if max_scores[0] != 0 else 0
+                ),
+                fluency=fluency_scores[i] / max_scores[1] if max_scores[1] != 0 else 0,
+                genre_alignment=(
+                    genre_scores[i] / max_scores[2] if max_scores[2] != 0 else 0
+                ),
             )
             scores.total = np.dot(
                 [scores.coherence, scores.fluency, scores.genre_alignment], self.weights
             )
+            scored_stories.append((story, scores))
 
         return sorted(scored_stories, key=lambda x: x[1].total, reverse=True)

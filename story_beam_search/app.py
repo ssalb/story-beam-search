@@ -1,8 +1,6 @@
 import gradio as gr
-from typing import Literal
-from pydantic import BaseModel, Field, constr
+from pydantic import BaseModel, Field
 from story_beam_search.stories_generator import StoryGenerationSystem
-from typing import Tuple, List
 
 genre_choices = [
     "children",
@@ -29,10 +27,10 @@ def create_story_generation_interface() -> gr.Interface:
     # Initialize the story generation system
     system = StoryGenerationSystem()
     system.initialize()
-    
+
     def generate_stories(
         prompt: str, genre: str, num_stories: int, temperature: float, max_length: int
-    ) -> Tuple[str, List[str]]:
+    ) -> tuple[str, list[str]]:
         """
         Generate and evaluate stories based on user input.
         Returns a tuple of (detailed_scores, story_texts).
@@ -96,7 +94,7 @@ def create_story_generation_interface() -> gr.Interface:
     )
 
     max_length_input = gr.Slider(
-        minimum=30, maximum=200, value=60, step=30, label="Maximum Length"
+        minimum=40, maximum=200, value=60, step=20, label="Maximum Length"
     )
 
     # Output components
@@ -122,7 +120,13 @@ def create_story_generation_interface() -> gr.Interface:
         fluency, and genre alignment.
         """,
         examples=[
-            ["Once upon a time in a magical forest,", "fantasy", 3, 1.8, 150],
+            [
+                "Once upon a time in a magical forest, the trees whispered secrets, and moonlight revealed hidden paths to a realm where time stood still.",
+                "fantasy",
+                3,
+                1.8,
+                150,
+            ],
             [
                 "The detective knelt beside the bloodstained carpet, her gaze sharp as she traced the faint outline of a shoeprint.",
                 "mystery",
