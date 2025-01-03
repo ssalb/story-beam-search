@@ -54,16 +54,16 @@ class ModelLoader:
             self.config.text_model_name, token=auth_token
         )
         text_model = AutoModelForCausalLM.from_pretrained(
-            self.config.text_model_name, device_map="auto", torch_dtype=torch.float16
+            self.config.text_model_name, token=auth_token
         ).to(self.device)
         text_model.eval()
 
         # Load BERT model for coherence and fluency scoring
         print(f"Loading BERT model ({self.config.bert_name})...")
         bert_tokenizer = AutoTokenizer.from_pretrained(self.config.bert_name)
-        bert_model = AutoModelForMaskedLM.from_pretrained(self.config.bert_name, output_hidden_states=True).to(
-            self.device
-        )
+        bert_model = AutoModelForMaskedLM.from_pretrained(
+            self.config.bert_name, output_hidden_states=True
+        ).to(self.device)
         bert_model.eval()
 
         # Load Zero-Shot classification pipeline for genre alignment scoring
