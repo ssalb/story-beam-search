@@ -11,7 +11,13 @@ def mock_model():
 
 @pytest.fixture
 def mock_tokenizer():
-    return MagicMock(spec=PreTrainedTokenizer)
+    tokenizer = MagicMock(spec=PreTrainedTokenizer)
+    # tokenizer.return_tensors = "pt"
+    tokenizer.side_effect = lambda text, return_tensors: {
+        "input_ids": torch.tensor([[1, 2, 3, 4]]),
+        "attention_mask": torch.tensor([[1, 1, 1, 1]])
+    }
+    return tokenizer
 
 @pytest.fixture
 def mock_device():
@@ -30,8 +36,8 @@ def test_generate_iterations(beam_search_generator, mock_evaluator):
     prompt = "Once upon a time"
     genre = "fantasy"
 
-    # Mock the _generate_single_iteration method
-    beam_search_generator._generate_single_iteration = MagicMock(return_value=["story1", "story2", "story3", "story4", "story5"])
+    # Mock the _generate_batch method
+    beam_search_generator._generate_batch = MagicMock(return_value=["story1", "story2", "story3", "story4", "story5"])
 
     # Mock the evaluate_multiple method
     mock_evaluator.evaluate_multiple = MagicMock(return_value=[
@@ -46,5 +52,5 @@ def test_generate_iterations(beam_search_generator, mock_evaluator):
 
     assert len(stories) == beam_search_generator.config.num_beams
     assert stories == ["story2", "story1", "story4"]
-    beam_search_generator._generate_single_iteration.assert_called()
+    beam_search_generator._generate_batch.assert_called()
     mock_evaluator.evaluate_multiple.assert_called()
