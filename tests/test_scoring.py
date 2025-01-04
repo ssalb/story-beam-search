@@ -1,7 +1,7 @@
 # tests/test_scoring.py
 import pytest
 import torch
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, MagicMock
 from transformers import PreTrainedModel, PreTrainedTokenizer, Pipeline
 from story_beam_search.scoring import (
     CoherenceScorer,
@@ -15,12 +15,23 @@ from story_beam_search.scoring import (
 
 
 @pytest.fixture
-def mock_bert_model():
+def mock_model():
 
     def mock_output(**inputs):
         output = MagicMock()
-        output.logits = torch.ones(1, 10, 768)
-        output.hidden_states = [torch.randn(10, 10, 768)]
+        output.logits = torch.ones(1, 10, 20)
+        output.hidden_states = [
+            torch.tensor(
+                [
+                    [[0, 1, 2], [0, 1, 2], [0, 1, 2]],
+                    [[0, 1.2, 2], [0, 1.2, 2], [0, 1.2, 2]],
+                    [[0, 1, 2.2], [0, 1, 2.2], [0, 1, 2.2]],
+                    [[0, 1.2, 2.2], [0, 1.2, 2.2], [0, 1.2, 2.2]],
+                    [[0, 1, 2], [0, 1, 2], [0, 1, 2]],
+                    [[0, 1.2, 2], [0, 1.2, 2], [0, 1.2, 2]],
+                ]
+            )
+        ]
         return output
 
     model = Mock(spec=PreTrainedModel, side_effect=mock_output)
@@ -36,12 +47,13 @@ def mock_tokenizer():
     tokenizer.pad_token = None
     tokenizer.mask_token = None
     tokenizer.eos_token = None
+    tokenizer.vocab_size = 10
 
     tokenizer_output = MagicMock()
     tokenizer_output.input_ids = torch.tensor([[0, 1, 2], [0, 1, 2], [0, 1, 2]])
-    tokenizer_output.attention_mask = torch.tensor([[0, 1, 2], [0, 1, 2], [0, 1, 2]])
+    tokenizer_output.attention_mask = torch.tensor([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
+
     tokenizer.__call__ = MagicMock(return_value=tokenizer_output)
-    tokenizer.encode.return_value = [1, 2, 3]
 
     tokenizer.return_value.to = MagicMock(return_value=tokenizer_output)
 
@@ -57,51 +69,48 @@ def mock_zero_shot_pipeline():
 
 # CoherenceScorer Tests
 class TestCoherenceScorer:
-    def test_initialization(self, mock_bert_model, mock_tokenizer):
+    def test_initialization(self, mock_model, mock_tokenizer):
         scorer = CoherenceScorer(
-            model=mock_bert_model, tokenizer=mock_tokenizer, device=torch.device("cpu")
+            model=mock_model, tokenizer=mock_tokenizer, device=torch.device("cpu")
         )
-        assert scorer.model == mock_bert_model
+        assert scorer.model == mock_model
         assert scorer.tokenizer == mock_tokenizer
         assert isinstance(scorer.device, torch.device)
 
     @pytest.mark.parametrize(
         "story, expected_score",
         [
-            (["First sentence. Second sentence."], 0.7),
+            (
+                ["First sentence. Second sentence."],
+                0.99705446,
+            ),  # result for mock hidden states
             (["Single sentence."], 0.0),
             ([""], 0.0),
         ],
     )
-    def test_score_calculation(
-        self, mock_bert_model, mock_tokenizer, story, expected_score
-    ):
+    def test_score_calculation(self, mock_model, mock_tokenizer, story, expected_score):
         scorer = CoherenceScorer(
-            model=mock_bert_model, tokenizer=mock_tokenizer, device=torch.device("cpu")
+            model=mock_model, tokenizer=mock_tokenizer, device=torch.device("cpu")
         )
-        with patch(
-            "story_beam_search.scoring.cosine_similarity",
-            return_value=[[expected_score]],
-        ):
-            score = scorer.score(story)[0]
-            assert abs(score - expected_score) < 1e-6
+        score = scorer.score(story)[0]
+        assert abs(score - expected_score) < 1e-6
 
 
 # FluencyScorer Tests
 class TestFluencyScorer:
-    def test_initialization(self, mock_bert_model, mock_tokenizer):
+    def test_initialization(self, mock_model, mock_tokenizer):
         scorer = FluencyScorer(
-            model=mock_bert_model, tokenizer=mock_tokenizer, device=torch.device("cpu")
+            model=mock_model, tokenizer=mock_tokenizer, device=torch.device("cpu")
         )
-        assert scorer.model == mock_bert_model
+        assert scorer.model == mock_model
         assert scorer.tokenizer == mock_tokenizer
 
-    def test_score_calculation(self, mock_bert_model, mock_tokenizer):
+    def test_score_calculation(self, mock_model, mock_tokenizer):
         scorer = FluencyScorer(
-            model=mock_bert_model, tokenizer=mock_tokenizer, device=torch.device("cpu")
+            model=mock_model, tokenizer=mock_tokenizer, device=torch.device("cpu")
         )
         score = scorer.score(["Test story"])[0]
-        expected_score = 0.0013020833721384406  # result for a torch.ones tensor
+        expected_score = 0.05  # result for a torch.ones tensor
         assert abs(score - expected_score) < 1e-6
 
 
@@ -130,13 +139,11 @@ class TestGenreAlignmentScorer:
 # StoryEvaluator Tests
 class TestStoryEvaluator:
     @pytest.fixture
-    def mock_scorers(self, mock_bert_model, mock_tokenizer, mock_zero_shot_pipeline):
+    def mock_scorers(self, mock_model, mock_tokenizer, mock_zero_shot_pipeline):
         coherence_scorer = CoherenceScorer(
-            mock_bert_model, mock_tokenizer, torch.device("cpu")
+            mock_model, mock_tokenizer, torch.device("cpu")
         )
-        fluency_scorer = FluencyScorer(
-            mock_bert_model, mock_tokenizer, torch.device("cpu")
-        )
+        fluency_scorer = FluencyScorer(mock_model, mock_tokenizer, torch.device("cpu"))
         genre_scorer = GenreAlignmentScorer(mock_zero_shot_pipeline, "test_genre")
         return coherence_scorer, fluency_scorer, genre_scorer
 
