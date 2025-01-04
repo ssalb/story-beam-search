@@ -137,10 +137,8 @@ class FluencyScorer(StoryScorer):
             # For each story in the batch
             for j in range(len(batch_stories)):
                 story_scores = []
-                input_ids = batch_inputs.input_ids[j : j + 1]  # Keep batch dimension
-                attention_mask = batch_inputs.attention_mask[
-                    j : j + 1
-                ]  # Get attention mask
+                input_ids = batch_inputs.input_ids[j : j + 1]
+                attention_mask = batch_inputs.attention_mask[j : j + 1]
 
                 # Only process tokens that aren't padding
                 valid_tokens = attention_mask[0].sum().item()
@@ -149,6 +147,11 @@ class FluencyScorer(StoryScorer):
                 for k in range(1, valid_tokens - 1):
                     masked_input_ids = input_ids.clone()
                     masked_input_ids[0, k] = mask_token_id
+
+                    # Ensure token is within vocab range
+                    masked_input_ids = masked_input_ids.clamp(
+                        0, self.tokenizer.vocab_size - 1
+                    )
 
                     with torch.no_grad():
                         outputs = self.model(
