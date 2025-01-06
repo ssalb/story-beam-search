@@ -8,8 +8,8 @@ from story_beam_search.scoring import StoryScorer
 
 @dataclass
 class BeamSearchConfig:
-    num_beams: int = 3
-    num_return_sequences: int = 3
+    num_beams: int = 4
+    num_return_sequences: int = 2
     max_length: int = 100
     no_repeat_ngram_size: int = 2
     temperature: float = 0.8
@@ -100,12 +100,16 @@ class BeamSearchGenerator:
         attention_mask_batch = torch.stack(padded_attention_masks).to(self.device)
 
         # Calculate continuation length
+        # we want this length, times the num_iterations, to be roughly the max_length set by the user.
         continuation_length = (
             max_length + self.config.max_length // self.config.num_iterations
         )
 
         # Generate all continuations in one pass
         with torch.no_grad():
+            # Technically speaking, this generation is also using beam search at the token level
+            # in this case though, I'm using it to generate multiple sequences at once and evaluate them
+            # not by token probability, but my custom metrics.
             outputs = self.model.generate(
                 input_ids=input_ids_batch,
                 attention_mask=attention_mask_batch,
