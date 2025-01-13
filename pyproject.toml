@@ -13,7 +13,7 @@ scikit-learn = "^1.6.0"
 huggingface-hub = "^0.27.0"
 pydantic = "^2.10.4"
 accelerate = "^1.2.1"
-transformers = { git = "https://github.com/huggingface/transformers.git" }
+transformers = "4.48.0"
 
 
 [tool.poetry.group.test.dependencies]
