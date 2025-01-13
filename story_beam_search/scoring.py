@@ -71,7 +71,7 @@ class CoherenceScorer(StoryScorer):
                 outputs = self.model(**inputs, output_hidden_states=True)
                 batch_embeddings = outputs.hidden_states[-1][
                     :, 0, :
-                ]  # Get CLS token embeddings
+                ]
                 all_embeddings.extend(batch_embeddings.cpu().numpy())
 
         # Calculate coherence scores for each story

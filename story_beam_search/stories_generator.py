@@ -16,7 +16,7 @@ auth_token = os.getenv("HF_TOKEN", None)
 
 @dataclass
 class ModelConfig:
-    text_model_name: str = "openai-community/gpt2"
+    text_model_name: str = "HuggingFaceTB/SmolLM2-135M-Instruct"
     bert_name: str = "answerdotai/ModernBERT-base"
     zero_shot_name: str = "facebook/bart-large-mnli"
     device: str = (
